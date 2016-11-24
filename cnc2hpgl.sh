@@ -40,7 +40,7 @@ PROLOGUE=prologue.plt
 EPILOGUE=epilogue.plt
 
 # Pen width in .1mm ie 5=0.5mm
-PEN_WIDTH=5
+PEN_WIDTH=2
 
 # Offset from Bottom Left cormer in mm
 X_OFFSET=40
