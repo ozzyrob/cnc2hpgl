@@ -3,4 +3,24 @@ C source for cnc2hpgl
 To build use 
 gcc -Wall -o cnc2hpgl cnc2hpgl.c -lm
 
+To convert FlatCAM cnc to HPGL:
+cnc2hpgl -i <inputfile.cnc> -o <filename.hpgl>
 
+
+The following are part of the script in the above directory.
+To convert to EPS:
+hp2xx <filename.hpgl> -t -p 2 -m eps -f <filename.eps>
+
+OPTIONAL:
+# EPS file needs editing for suitable sheet (A4 or A5)
+#
+# A4 Landscape 0 0 842 595
+# A4 Portrait 0 0 595 842
+# A5 Landscape 0 0 595 420
+# A5 Portrait 0 0 420 595 
+
+For A4:
+sed -i 's/^%%BoundingBox:.*$/%%BoundingBox: 0 0 842 595/' <filename.eps>
+
+To convert to PDF:
+pstoedit -f gs:pdfwrite <filename.eps> <filenmae.pdf>
