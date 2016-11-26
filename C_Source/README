@@ -1,0 +1,6 @@
+C source for cnc2hpgl
+
+To build use 
+gcc -Wall -o cnc2hpgl cnc2hpgl.c -lm
+
+
