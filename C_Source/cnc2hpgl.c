@@ -14,83 +14,22 @@
   *
   * cnc2hpgl -i src_filenam -o dest_filename
   *
-  **/
+**/
+  
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <math.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <errno.h>
+#include "cnc2hpgl.h"
 
 #define CNC2_VERSION "0.0.1"
-
-#define ERR_NOT_OPEN_INPUT 0x01
-#define ERR_NOT_OPEN_OUTPUT 0x01
-#define ERR_NOT_OPEN_TEMP 0x01
-
-#define ACSII_NULL 0x00
-#define ACSII_BS 0x08
-#define ACSII_HT 0x09
-#define ACSII_LF 0x0A
-#define ACSII_VT 0x0B
-#define ACSII_FF 0x0C
-#define ACSII_CR 0x0D
-#define ACSII_SPACE 0x20
-#define ACSII_DEL 0x7F
-
-#define DISTANCE_MODE_UNK 0
-#define DISTANCE_MODE_ABS 90
-#define DISTANCE_MODE_INC 91
-
-//* Metric Units = 1/0.025
-#define MACHINE_UNITS_MM 40
-
-//* Imperial units = 25.4/0.025
-#define MACHINE_UNITS_INCH 1016
-#define MACHINE_UNITS_UNK 0
-
-
-const char CNC2_HELP[]= "convgerber: FlatCAM cnc file converter\n"
-	                    "Written by Robert Murphy.\n"
-	                    "This software is available at https://github.com/ozzyrob/convgerber\n"
-	                    "License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>\n"
-	                    "\n"
-	                    "This is free software; you are free to change and redistribute it.\n"
-	                    "There is NO WARRANTY, to the extent permitted by law.\n"
-	                    "\n"
-	                    "Usage: cnc2hpgl -i <input CNC> -o <output HPGL> [-v] [-h]\n"
-	                    "\n"
-	                    "\t-i <input CNC> : Specifies which file contains the FlatCAM cnc file to convert.\n"
-	                    "\t-o <output HPGL> : specifies which file the converted CNC is to be saved to.\n"
-	                    "\n"
-	                    "\t-v : Display current software version\n"
-	                    "\t-h : Display this help.\n"
-	                    "\n";
-	                    
-const char CNC2_PROLOGUE[] = ".@;1:IN;\n"
-						     "SP;\n"
-						     "VS5;\n"
-						     "SP1;\n";
-
-const char CNC2_EPILOGUE[] = "SP0;\n"
-							 "SP;\n"
-							 "IN;\n";
-
-
-
-							 
-struct CNC2_glb {
-	int status;
-	float machine_units;
-	int distance_mode;				//* 90 = absolute; 91 = incremental; 0=unknown  
-	char *src_filename;
-	char *dest_filename;
-	char *temp_filename;
-
-};							 					   	               
+							 					   	               
 //* START FUNCTIONS
 /**
   * CNC2_show_version
@@ -124,6 +63,7 @@ int CNC2_show_help( struct CNC2_glb *glb ) {
 int CNC2_init( struct CNC2_glb *glb )
 {
 	glb->status = 0;
+	glb->plain = false;
 	glb->machine_units = MACHINE_UNITS_UNK;
 	glb->distance_mode = DISTANCE_MODE_UNK;
 	glb->src_filename = NULL;
@@ -144,7 +84,7 @@ int CNC2_parse_parameters( int argc, char **argv, struct CNC2_glb *glb )
 	char c;
 
 	do {
-		c = getopt(argc, argv, "i:o:vh");
+		c = getopt(argc, argv, "i:o:pvh");
 		switch (c) { 
 			case EOF: /* finished */
 				break;
@@ -155,6 +95,10 @@ int CNC2_parse_parameters( int argc, char **argv, struct CNC2_glb *glb )
 
 			case 'o':
 				glb->dest_filename = strdup(optarg);
+				break;
+			
+			case 'p' :
+				glb->plain = true;
 				break;
 
 			case 'h':
@@ -218,9 +162,9 @@ int CNC2_parse_parameters( int argc, char **argv, struct CNC2_glb *glb )
   */
 int CNC2_get_distance_mode ( FILE* f_src, struct CNC2_glb *glb ) {
 	
-	char buff[80];
+	char buff[32];
 	
-	while ( fgets(buff, 80, f_src) != NULL ) {
+	while ( fgets(buff, 32, f_src) != NULL ) {
 		
 		
 		//* Check for G90 absolute mode
@@ -254,9 +198,9 @@ int CNC2_get_distance_mode ( FILE* f_src, struct CNC2_glb *glb ) {
   */
 int CNC2_get_machine_units ( FILE* f_src, struct CNC2_glb *glb ) {
 	
-	char buff[80];
+	char buff[32];
 	
-	while ( fgets(buff, 80, f_src) != NULL ) {
+	while ( fgets(buff, 32, f_src) != NULL ) {
 		
 		
 		//* Check for G20 imperial (inch)
@@ -297,32 +241,32 @@ int CNC2_write_hpgl ( FILE* f_src, FILE* f_dest, float mac_units) {
 	char prev_line[32];
 	char curr_line[32];
 	
-	char* curr_line_read = buff;
+	char* line_to_process = buff;
 	char* x_split;
 	char* y_split;
 
 	
 
-	while ( fgets(curr_line_read, 32, f_src) != NULL ) {
+	while ( fgets(line_to_process, 32, f_src) != NULL ) {
 		
 //*---------------------------------------------------------------------		
 		//* Check for Z  axis (G00Z or G01Z)
 		//* Not required for plotter
 		//* as G00 (rapid) is equal to PU movement
-		if ( strstr(curr_line_read, "Z") != NULL ) {
+		if ( strstr(line_to_process, "Z") != NULL ) {
 			
 			continue;
-		} //* END: if ( strstr(curr_line_read, "Z") != NULL )
+		} //* END: if ( strstr(line_to_process, "Z") != NULL )
 		
 		//* Rapids (G00)
 		//* Convert X & Y values to plotter values
 		//* Pen Up instruction
-		else if ( strstr(curr_line_read, "G01") != NULL ) {
+		else if ( strstr(line_to_process, "G01") != NULL ) {
 
 				//* Get location in string of X & Y characters
 				//* and replace them with ACSII_NULL character
-				x_split = strpbrk(curr_line_read, "X");
-				y_split = strpbrk(curr_line_read, "Y");  
+				x_split = strpbrk(line_to_process, "X");
+				y_split = strpbrk(line_to_process, "Y");  
 				*x_split = ACSII_NULL;
 				*y_split = ACSII_NULL;
 
@@ -352,15 +296,15 @@ int CNC2_write_hpgl ( FILE* f_src, FILE* f_dest, float mac_units) {
 					strcpy(prev_line, curr_line);
 				}
 
-			} //* END: else if ( strstr(curr_line_read, "G01") != NULL )			
+			} //* END: else if ( strstr(line_to_process, "G01") != NULL )			
 
-		else if ( strstr(curr_line_read, "G00") != NULL ) {
+		else if ( strstr(line_to_process, "G00") != NULL ) {
 
 
 				//* Get location in string of X & Y characters
 				//* and replace them with ACSII_NULL character
-				x_split = strpbrk(curr_line_read, "X");
-				y_split = strpbrk(curr_line_read, "Y");  
+				x_split = strpbrk(line_to_process, "X");
+				y_split = strpbrk(line_to_process, "Y");  
 				*x_split = ACSII_NULL;
 				*y_split = ACSII_NULL;
 
@@ -389,9 +333,9 @@ int CNC2_write_hpgl ( FILE* f_src, FILE* f_dest, float mac_units) {
 					strcpy(prev_line, curr_line);
 				}
 
-			} //* END: else if ( strstr(curr_line_read, "G00") != NULL )			
+			} //* END: else if ( strstr(line_to_process, "G00") != NULL )			
 
-	} //* END: while ( fgets(curr_line_read, 32, f_src) != NULL )
+	} //* END: while ( fgets(line_to_process, 32, f_src) != NULL )
 
 	rewind (f_src);
 	return 0;
@@ -524,13 +468,27 @@ int main(int argc, char **argv) {
 	//* printf("Units Value = %f\n", glb.machine_units);
 	
 	printf("Writing output file %s\n", glb.dest_filename);
-	CNC2_write_prologue(f_destination);
-	CNC2_write_hpgl(f_temp, f_destination, glb.machine_units);
-	CNC2_write_epilogue(f_destination);
+
+	//* Include epilogue & prologue
+	if ( !glb.plain ) {
+		CNC2_write_prologue(f_destination);
+		CNC2_write_hpgl(f_temp, f_destination, glb.machine_units);
+		CNC2_write_epilogue(f_destination);
+	}
+
+	//* Do not include epilogue & prologue
+	else if ( glb.plain ) {
+		CNC2_write_hpgl(f_temp, f_destination, glb.machine_units);
+	}
 	printf("All done\n");
 
 	fclose(f_destination);
 	fclose(f_temp);
+	
+	if ( remove(glb.temp_filename) != 0 ) {
+		fprintf(stderr, "Error: Can not remove temp file %s\n", glb.temp_filename);
+		return ERR_NOT_REMOVE_TEMP;
+	}
 
 	return 0;
 }
