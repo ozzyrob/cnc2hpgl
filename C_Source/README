@@ -19,7 +19,7 @@ OPTIONAL:
 # A5 Landscape 0 0 595 420
 # A5 Portrait 0 0 420 595 
 
-For A4:
+For A4 Landscape:
 sed -i 's/^%%BoundingBox:.*$/%%BoundingBox: 0 0 842 595/' <filename.eps>
 
 To convert to PDF:
