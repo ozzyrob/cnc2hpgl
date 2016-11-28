@@ -3,6 +3,13 @@ C source for cnc2hpgl
 To build use 
 gcc -Wall -o cnc2hpgl cnc2hpgl.c -lm
 
+I used salix-14.1 for development, any modern Linux distro
+shouldn't have any problems. 
+-lm switch is needed for math routines.
+
+info about getopt function for parsing command line options
+https://www.gnu.org/software/libc/manual/html_node/Getopt.html#Getopt
+
 To convert FlatCAM cnc to HPGL:
 cnc2hpgl -i <inputfile.cnc> -o <filename.hpgl>
 
