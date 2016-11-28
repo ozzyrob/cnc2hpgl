@@ -10,9 +10,11 @@ shouldn't have any problems.
 info about getopt function for parsing command line options
 https://www.gnu.org/software/libc/manual/html_node/Getopt.html#Getopt
 
-To convert FlatCAM cnc to HPGL:
+To convert FlatCAM cnc to HPGL with Prologue & Epilogue:
 cnc2hpgl -i <inputfile.cnc> -o <filename.hpgl>
 
+To convert FlatCAM cnc to HPGL without Prologue & Epilogue (plain):
+cnc2hpgl -i <inputfile.cnc> -o <filename.hpgl> -p
 
 The following are part of the script in the above directory.
 To convert to EPS:
