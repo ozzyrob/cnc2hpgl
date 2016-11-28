@@ -12,4 +12,6 @@
 
 
 #NOTE:
-Please use much quicker version in C directory
+Please see much quicker version in C_Source directory
+No reliance on BC, tho still requires running hp2xx & pstoedit seperately
+for EPS & PDF creation
