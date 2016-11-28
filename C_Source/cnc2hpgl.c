@@ -31,21 +31,25 @@
 #define ERR_NOT_OPEN_OUTPUT 0x01
 #define ERR_NOT_OPEN_TEMP 0x01
 
-#define BS 0x08
-#define HT 0x09
-#define LF 0x0A
-#define VT 0x0B
-#define FF 0x0C
-#define CR 0x0D
-#define SPACE 0x20
-#define DEL 0x7F
+#define ACSII_NULL 0x00
+#define ACSII_BS 0x08
+#define ACSII_HT 0x09
+#define ACSII_LF 0x0A
+#define ACSII_VT 0x0B
+#define ACSII_FF 0x0C
+#define ACSII_CR 0x0D
+#define ACSII_SPACE 0x20
+#define ACSII_DEL 0x7F
 
 #define DISTANCE_MODE_UNK 0
 #define DISTANCE_MODE_ABS 90
 #define DISTANCE_MODE_INC 91
 
-#define MACHINE_UNITS_MM 40;
-#define MACHINE_UNITS_INCH 1016;
+//* Metric Units = 1/0.025
+#define MACHINE_UNITS_MM 40
+
+//* Imperial units = 25.4/0.025
+#define MACHINE_UNITS_INCH 1016
 #define MACHINE_UNITS_UNK 0
 
 
@@ -87,7 +91,7 @@ struct CNC2_glb {
 	char *temp_filename;
 
 };							 					   	               
-
+//* START FUNCTIONS
 /**
   * CNC2_show_version
   *
@@ -96,7 +100,7 @@ struct CNC2_glb {
 int CNC2_show_version( struct CNC2_glb *glb ) {
 	fprintf(stderr,"%s\n", CNC2_VERSION);
 	return 0;
-}
+} //* END_FUNC: CNC2_show_version
 
 /**
   * CNC2_show_help
@@ -109,7 +113,7 @@ int CNC2_show_help( struct CNC2_glb *glb ) {
 
 	return 0;
 
-}                    
+} //* END_FUNC: CNC2_show_help                  
 
 /**
   * CNC2_init
@@ -126,7 +130,7 @@ int CNC2_init( struct CNC2_glb *glb )
 	glb->dest_filename = NULL;
 	glb->temp_filename = "CNC.TMP";
 	return 0;
-}
+} //* END_FUNC: CNC2_init
 
 /**
   * CNC2_parse_parameters
@@ -170,10 +174,10 @@ int CNC2_parse_parameters( int argc, char **argv, struct CNC2_glb *glb )
 				fprintf(stderr, "internal error with getopt\n");
 				exit(1);
 				
-		} /* switch */
+		} //* END: switch (c) 
 	} while (c != EOF); /* do */
 	return 0;
-}
+} //* END_FUNC: CNC2_parse_parameters
 
 /**
  * CNC_sanitise_src
@@ -189,23 +193,23 @@ int CNC2_parse_parameters( int argc, char **argv, struct CNC2_glb *glb )
 			
 					switch (char_read) {
 					
-					case BS:
-					case HT:
-					case VT:
-					case FF:
-					case CR:
-					case SPACE:
-					case DEL:
+					case ACSII_BS:
+					case ACSII_HT:
+					case ACSII_VT:
+					case ACSII_FF:
+					case ACSII_CR:
+					case ACSII_SPACE:
+					case ACSII_DEL:
 								break;
 					
 					default:
 								fputc( char_read, f_dest);
-			}
-	}
+			} //* END: switch (char_read)
+	} //* END: while (  ( char_read= fgetc(f_src) ) != EOF )
 	
 	rewind(f_dest);	
 	return 0;
-}	
+} //* END_FUNC: CNC2_sanitise_src	
 /**
   * CNC2_get_distance_mode
   * get & set path control mode
@@ -221,26 +225,26 @@ int CNC2_get_distance_mode ( FILE* f_src, struct CNC2_glb *glb ) {
 		
 		//* Check for G90 absolute mode
 		if ( strstr(buff, "G90") != NULL ) {
-			printf("Absolute co-ords\n");
+			printf("G90\tAbsolute co-ords\n");
 			glb->distance_mode = DISTANCE_MODE_ABS; 
 			rewind (f_src);
 			return 0;
 		}
 		//* Check for G91 incremental mode
 		else if ( strstr(buff, "G91") != NULL ){
-			printf("Incremental co-ords\n");
+			printf("G91\tIncremental co-ords\n");
 			glb->distance_mode = DISTANCE_MODE_INC;
 			rewind (f_src);
 			return 0;
 		}
-	}		
+	} //* END: while ( fgets(buff, 80, f_src) != NULL )		
 
 	//* No mode found
 	printf("Mode not found\n");
 	glb->distance_mode = DISTANCE_MODE_UNK;
 	rewind (f_src);
 	return DISTANCE_MODE_UNK;
-}
+} //* END_FUNC: CNC2_get_distance_mode
 
 /**
   * CNC_get_machine_units
@@ -257,164 +261,89 @@ int CNC2_get_machine_units ( FILE* f_src, struct CNC2_glb *glb ) {
 		
 		//* Check for G20 imperial (inch)
 		if ( strstr(buff, "G20") != NULL ) {
-			printf("Imperial Units\n");
+			printf("G20\tImperial Units\n");
 			glb->machine_units = MACHINE_UNITS_INCH; 
 			rewind (f_src);
 			return 0;
 		}
 		//* Check for G21 metric (mm)
 		else if ( strstr(buff, "G21") != NULL ){
-			printf("Metric units\n");
+			printf("G21\tMetric units\n");
 			glb->machine_units = MACHINE_UNITS_MM;
 			rewind (f_src);
 			return 0;
 		}
-	}		
+	} //* END: while ( fgets(buff, 80, f_src) != NULL )		
 
 	//* No mode found
 	printf("Units not found\n");
 	glb->machine_units=MACHINE_UNITS_UNK;
 	rewind (f_src);
 	return MACHINE_UNITS_UNK;
-}
+} //* END_FUNC: CNC2_get_machine_units
 
 /**
-  * CNC_x_y_moves
+  * CNC2_write_hpgl
   * copy G00 & G01 moves that have x & y
   * when done file pointer is reset to start
   * 
   */
-int CNC2_x_y_moves ( FILE* f_src, FILE* f_dest, float mac_units) {
+int CNC2_write_hpgl ( FILE* f_src, FILE* f_dest, float mac_units) {
 	
-	int i;
-	int x;
 	float tmp_axis;
 	float x_axis;
 	float y_axis;
 	char buff[32];
-	char current_axis[16];
 	char prev_line[32];
 	char curr_line[32];
+	
+	char* curr_line_read = buff;
+	char* x_split;
+	char* y_split;
 
 	
 
-	while ( fgets(buff, 32, f_src) != NULL ) {
+	while ( fgets(curr_line_read, 32, f_src) != NULL ) {
 		
-		
-		//* Check Z (G00Z or G01Z)
+//*---------------------------------------------------------------------		
+		//* Check for Z  axis (G00Z or G01Z)
 		//* Not required for plotter
 		//* as G00 (rapid) is equal to PU movement
-		if ( strstr(buff, "Z") != NULL ) {
+		if ( strstr(curr_line_read, "Z") != NULL ) {
 			
 			continue;
-		}
-
+		} //* END: if ( strstr(curr_line_read, "Z") != NULL )
+		
 		//* Rapids (G00)
 		//* Convert X & Y values to plotter values
 		//* Pen Up instruction
-		else if ( strstr(buff, "G00X") != NULL ) {
-			
+		else if ( strstr(curr_line_read, "G01") != NULL ) {
+
+				//* Get location in string of X & Y characters
+				//* and replace them with ACSII_NULL character
+				x_split = strpbrk(curr_line_read, "X");
+				y_split = strpbrk(curr_line_read, "Y");  
+				*x_split = ACSII_NULL;
+				*y_split = ACSII_NULL;
+
+				//* Convert Y value string to float, multiply by machine units
+				//* and round it
+				tmp_axis = atof(x_split+1);
+				x_axis = roundf(tmp_axis * mac_units);
  
-			
-				i=0;
-				while ( buff[i] != 'X' ) {
+				//* Convert X value string to float, multiply by machine units
+				//* and round it
+			    tmp_axis = atof(y_split+1);
+			    y_axis = roundf(tmp_axis * mac_units);
 
-					i++;
-					}
-				i++;
-				x=0;
-				
-				//* Get X cordinate and convert using supplied units
-				while ( buff[i] != 'Y' ) {
-					
-					current_axis[x] = buff[i];
-					i++;
-					x++;
-					}	
-				//* Add string terminator (NULL)
-				current_axis[x] = 0x00;
-				//* Convert string to float
-				tmp_axis = atof(current_axis);
-				//* Multiply by required units and save rounded value
-				x_axis = roundf(tmp_axis * mac_units);	
-				i++;
-				x=0;				
-
-				//* Get Y cordinate and convert using supplied units
-				while ( buff[i] != LF ) {
-					
-					current_axis[x] = buff[i];
-					i++;
-					x++;
-					}
-				//* Add string terminator (NULL)
-				current_axis[x] = 0x00;	
-				//* Convert string to float
-				tmp_axis = atof(current_axis);
-				//* Multiply by required units and save rounded value
-				y_axis = roundf(tmp_axis * mac_units);
 				//* Uncomment to printf below to print to stdout
 				//*printf("PU %i,%i\n", (int)x_axis, (int)y_axis);
 
 				//* Format current line
-				 sprintf(curr_line, "PU %i,%i;\n", (int)x_axis, (int)y_axis);
+				//* For Pen Up 
 
-				//* Catch consectutive duplicate lines
-				//* If curr_line and prev_line are not the same
-				//* write curr_line to file & copy it to prev_line
-				 if ( strcmp(prev_line, curr_line) != 0 ) {		
-					fputs(curr_line, f_dest);
-					strcpy(prev_line, curr_line);
-				}
-				//* else if ( strcmp(prev_line, curr_line) != 0 ) {
-				//* 
-				//*}
-			}
-		
-
-		//* Linear movement (G01)
-		//* Convert X & Y values to plotter values
-		//* Pen Down instruction
-		else if ( strstr(buff, "G01X") != NULL ) {
-				i=0;
-				while ( buff[i] != 'X' ) {
-
-					i++;
-					}
-				i++;
-				x=0;
+				sprintf(curr_line, "PD %i,%i;\n", (int)x_axis, (int)y_axis);
 				
-				while ( buff[i] != 'Y' ) {
-					
-					current_axis[x] = buff[i];
-					i++;
-					x++;
-					}	
-				//* Add string terminator (NULL)
-				current_axis[x] = 0x00;
-				//* Convert string to float
-				tmp_axis = atof(current_axis);
-				//* Multiply by required units and save rounded value
-				x_axis = roundf(tmp_axis * mac_units);	
-				i++;
-				x=0;				
-				while ( buff[i] != LF ) {
-					
-					current_axis[x] = buff[i];
-					i++;
-					x++;
-					}
-				//* Add string terminator (NULL)
-				current_axis[x] = 0x00;	
-				//* Convert string to float
-				tmp_axis = atof(current_axis);
-				//* Multiply by required units and save rounded value
-				y_axis = roundf(tmp_axis * mac_units);
-				//* Uncomment to printf below to print to stdout
-				//*printf("PD %i,%i\n", (int)x_axis, (int)y_axis);					
-				//* Format current line
-				 sprintf(curr_line, "PD %i,%i;\n", (int)x_axis, (int)y_axis);
-
 				//* Catch consectutive duplicate lines
 				//* If curr_line and prev_line are not the same
 				//* write curr_line to file & copy it to prev_line
@@ -422,16 +351,51 @@ int CNC2_x_y_moves ( FILE* f_src, FILE* f_dest, float mac_units) {
 					fputs(curr_line, f_dest);
 					strcpy(prev_line, curr_line);
 				}
-				//* else if ( strcmp(prev_line, curr_line) != 0 ) {
-				//* 
-				//*}
-		}	
-		
-	
-	}
+
+			} //* END: else if ( strstr(curr_line_read, "G01") != NULL )			
+
+		else if ( strstr(curr_line_read, "G00") != NULL ) {
+
+
+				//* Get location in string of X & Y characters
+				//* and replace them with ACSII_NULL character
+				x_split = strpbrk(curr_line_read, "X");
+				y_split = strpbrk(curr_line_read, "Y");  
+				*x_split = ACSII_NULL;
+				*y_split = ACSII_NULL;
+
+				//* Convert X value string to float, multiply by machine units
+				//* and round it
+				tmp_axis = atof(x_split+1);
+				x_axis = roundf(tmp_axis * mac_units);
+ 
+				//* Convert Y value string to float, multiply by machine units
+				//* and round it
+			    tmp_axis = atof(y_split+1);
+			    y_axis = roundf(tmp_axis * mac_units);
+
+				//* Uncomment to printf below to print to stdout
+				//*printf("PU %i,%i\n", (int)x_axis, (int)y_axis);
+
+				//* Format current line
+				//* For Pen Up 
+				sprintf(curr_line, "PU %i,%i;\n", (int)x_axis, (int)y_axis);
+				
+				//* Catch consectutive duplicate lines
+				//* If curr_line and prev_line are not the same
+				//* write curr_line to file & copy it to prev_line
+				 if ( strcmp(prev_line, curr_line) != 0 ) {		
+					fputs(curr_line, f_dest);
+					strcpy(prev_line, curr_line);
+				}
+
+			} //* END: else if ( strstr(curr_line_read, "G00") != NULL )			
+
+	} //* END: while ( fgets(curr_line_read, 32, f_src) != NULL )
+
 	rewind (f_src);
 	return 0;
-}
+} // END_FUNC: CNC2_write_hpgl
 
 /**
  * CNC2_get_file_size
@@ -452,7 +416,7 @@ int CNC2_get_file_size (FILE* fp)
     }
     /* Return size of file */ 
 	return st.st_size;
-}
+} //* END_FUNC: CNC2_get_file_size
 
 /**
   * CNC2_write_prologue
@@ -465,7 +429,7 @@ int CNC2_write_prologue( FILE *f_new )
 	fprintf(f_new,"%s", CNC2_PROLOGUE);
 
 	return 0;
-}
+} //* END_FUNC: CNC2_write_prologue
 
 /**
   * CNC2_write_epilogue
@@ -478,7 +442,9 @@ int CNC2_write_epilogue( FILE *f_new )
 	fprintf(f_new,"%s", CNC2_EPILOGUE);
 
 	return 0;
-}
+} //* END_FUNC: CNC2_write_epilogue
+
+//* END FUNCTIONS
 
 /**
   * cnc2hpgl,  main body
@@ -505,11 +471,11 @@ int main(int argc, char **argv) {
 		actually perform some meaningful work
 		*/
 	if ((glb.src_filename == NULL)) {
-		fprintf(stderr,"Error: Input filename is NULL.\n");
+		fprintf(stderr,"Error: No input filename given.\n");
 		exit(1);
 	}
 	if ((glb.dest_filename == NULL)) {
-		fprintf(stderr,"Error: Output filename is NULL.\n");
+		fprintf(stderr,"Error: No output filename given.\n");
 		exit(1);
 	}
 	if ((glb.temp_filename == NULL)) {
@@ -547,21 +513,21 @@ int main(int argc, char **argv) {
 
 
 	//* Remove whitespace from input and save in temp
-	printf("Sanitising file:\t");
+	printf("Please wait\nSanitising input file %s\n",glb.src_filename);
 	CNC2_sanitise_src( f_source, f_temp );
-	printf("Done !\n");
 	fclose(f_source);
 
 	CNC2_get_distance_mode(f_temp, &glb);
-	printf("Co-ord value = %i\n", glb.distance_mode);
+	//* printf("Co-ord value = %i\n", glb.distance_mode);
 
 	CNC2_get_machine_units(f_temp, &glb);
-	printf("Units Value = %f\n", glb.machine_units);
+	//* printf("Units Value = %f\n", glb.machine_units);
 	
-	
+	printf("Writing output file %s\n", glb.dest_filename);
 	CNC2_write_prologue(f_destination);
-	CNC2_x_y_moves(f_temp, f_destination, glb.machine_units);
+	CNC2_write_hpgl(f_temp, f_destination, glb.machine_units);
 	CNC2_write_epilogue(f_destination);
+	printf("All done\n");
 
 	fclose(f_destination);
 	fclose(f_temp);
