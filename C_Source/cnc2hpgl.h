@@ -16,12 +16,13 @@
   *
 **/
 
-#define ERR_NOT_OPEN_INPUT 0x01
-#define ERR_NOT_OPEN_OUTPUT 0x01
-#define ERR_NOT_OPEN_TEMP 0x01
+//* Error defs
+#define ERR_NOT_OPEN_INPUT false
+#define ERR_NOT_OPEN_OUTPUT false
+#define ERR_NOT_OPEN_TEMP false
+#define ERR_NOT_REMOVE_TEMP false
 
-#define ERR_NOT_REMOVE_TEMP 0x01
-
+//* ASCII defs
 #define ACSII_NULL 0x00
 #define ACSII_BS 0x08
 #define ACSII_HT 0x09
@@ -32,18 +33,17 @@
 #define ACSII_SPACE 0x20
 #define ACSII_DEL 0x7F
 
-#define DISTANCE_MODE_UNK 0
+//* G90 & G91 defs
+#define DISTANCE_MODE_ERR false //* No G90 or G91
 #define DISTANCE_MODE_ABS 90
 #define DISTANCE_MODE_INC 91
 
-//* Metric Units = 1/0.025
-#define MACHINE_UNITS_MM 40
+//* G20 & G21 defs
+#define MACHINE_UNITS_ERR false //* No G20 or G21
+#define MACHINE_UNITS_MM 40 //* G21 Metric Units = 1/0.025
+#define MACHINE_UNITS_INCH 1016 //* G20 Imperial units = 25.4/0.025
 
-//* Imperial units = 25.4/0.025
-#define MACHINE_UNITS_INCH 1016
-#define MACHINE_UNITS_UNK 0
-
-
+//* Help Message
 const char CNC2_HELP[]= "convgerber: FlatCAM cnc file converter\n"
 	                    "Written by Robert Murphy.\n"
 	                    "This software is available at https://github.com/ozzyrob/convgerber\n"
@@ -56,12 +56,14 @@ const char CNC2_HELP[]= "convgerber: FlatCAM cnc file converter\n"
 	                    "\n"
 	                    "\t-i <input CNC> : Specifies which file contains the FlatCAM cnc file to convert.\n"
 	                    "\t-o <output HPGL> : specifies which file the converted CNC is to be saved to.\n"
-	                    "\t-p : Do not write Prologue & Epilogue to output file.\n" 
+	                    "\t-p : Do not write Prologue & Epilogue to output file.\n"
+	                    "\t-k : Do not delete temporary file after conversion.\n" 
 	                    "\n"
 	                    "\t-v : Display current software version\n"
 	                    "\t-h : Display this help.\n"
 	                    "\n";
 	                    
+//* Roland DXY-980 
 const char CNC2_PROLOGUE[] = ".@;1:IN;\n"
 						     "SP;\n"
 						     "VS5;\n"
@@ -73,9 +75,10 @@ const char CNC2_EPILOGUE[] = "SP0;\n"
 
 
 
-							 
+//* Global struture							 
 struct CNC2_glb {
 	bool plain;
+	bool keep_tmp;
 	int status;
 	float machine_units;
 	int distance_mode;				//* 90 = absolute; 91 = incremental; 0=unknown  
